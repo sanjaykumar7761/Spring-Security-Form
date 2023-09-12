@@ -49,7 +49,7 @@ public class User {
 
     private boolean isActive;
 
-    private boolean enabled;
+    
 
     @Column(name = "reset_token")
     private String resetToken;
