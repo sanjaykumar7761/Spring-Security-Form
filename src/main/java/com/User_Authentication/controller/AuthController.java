@@ -1,7 +1,7 @@
 package com.User_Authentication.controller;
 
 
-import ch.qos.logback.core.net.SyslogOutputStream;
+
 import com.User_Authentication.entity.Role;
 import com.User_Authentication.entity.User;
 import com.User_Authentication.payload.JWTAuthResponse;
@@ -65,6 +65,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDto loginDto,
                                    @RequestParam(value = "rememberMe", required = false) boolean rememberMe) {
+
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginDto.getUsernameOrEmail(), loginDto.getPassword())
@@ -74,8 +76,12 @@ public class AuthController {
 
             String token = jwtTokenProvider.createToken(loginDto.getUsernameOrEmail());
 
-            // Clear login attempts upon successful login (if you have login attempt tracking)
-            // loginAttemptService.resetAttempts(loginDTO.getUsernameOrEmail());
+            Optional<User> byCaptcha = userRepository.findByCaptcha(loginDto.getCaptcha());
+            try {
+                String captcha = byCaptcha.get().getCaptcha();
+            }catch (Exception e){
+                return new ResponseEntity<>("Please enter right captcha:",HttpStatus.NOT_FOUND);
+            }
 
 
             return ResponseEntity.ok(new JWTAuthResponse(token));
@@ -104,7 +110,7 @@ public class AuthController {
                 }
 
                 userRepository.save(user);
-                System.out.println("signin is successfully");
+
             }
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username/email or password.");
@@ -250,6 +256,17 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.status(HttpStatus.OK).body("Password reset successful.");
+    }
+
+    @PostMapping("/captcha")
+    public ResponseEntity<?> createCaptcha(@RequestParam("email") String email) throws Exception{
+        Optional<User> byEmail = userRepository.findByEmail(email);
+        if (!byEmail.isPresent()){
+            return new ResponseEntity<>("User not found for this Email:"+email,HttpStatus.NOT_FOUND);
+        }
+
+        String captcha = jwtTokenProvider.captchaGenerator(email);
+        return new ResponseEntity<>(captcha,HttpStatus.OK);
     }
 
 
